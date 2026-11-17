@@ -1,0 +1,13 @@
+{
+  "name": "@myspa/compartido",
+  "version": "1.0.0",
+  "description": "Reglas de negocio, cliente de la API y definiciones de catálogos compartidas por web, móvil y API",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
