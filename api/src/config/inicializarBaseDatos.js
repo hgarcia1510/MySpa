@@ -5,6 +5,25 @@ import { fileURLToPath } from 'node:url';
 
 const carpetaActual = path.dirname(fileURLToPath(import.meta.url));
 const rutaScriptSql = path.resolve(carpetaActual, '../../../baseDatos/mySpa.sql');
+const rutaExtensionesDashboard = path.resolve(carpetaActual, '../../../baseDatos/extensionesDashboard.sql');
+
+/**
+ * Actualiza una base de datos que ya existía con lo nuevo del Dashboard:
+ * tablas eventoUso, gastoMarketing y resena, y la columna reservacion.canal.
+ */
+async function aplicarExtensionesDashboard(conexion, nombreBaseDatos) {
+  await conexion.query(`USE \`${nombreBaseDatos}\``);
+  await conexion.query(await fs.readFile(rutaExtensionesDashboard, 'utf8'));
+  const [columnas] = await conexion.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'reservacion' AND COLUMN_NAME = 'canal'`,
+    [nombreBaseDatos]
+  );
+  if (!columnas.length) {
+    await conexion.query(`ALTER TABLE reservacion ADD COLUMN canal ENUM('Web','Sucursal') NOT NULL DEFAULT 'Web' AFTER estatus`);
+    console.log('Columna reservacion.canal agregada');
+  }
+}
 
 const datosConexion = () => ({
   host: process.env.BD_HOST ?? 'localhost',
@@ -25,6 +44,7 @@ export async function inicializarBaseDatos({ reiniciar = false } = {}) {
 
     const [existentes] = await conexion.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [nombreBaseDatos]);
     if (existentes.length) {
+      await aplicarExtensionesDashboard(conexion, nombreBaseDatos);
       console.log(`Base de datos ${nombreBaseDatos} lista`);
       return;
     }

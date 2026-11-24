@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/servidor.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "dev": "node --watch --env-file=.env src/servidor.js",
     "start": "node --env-file=.env src/servidor.js",
     "crearBd": "node --env-file=.env src/config/inicializarBaseDatos.js",

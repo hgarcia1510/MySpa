@@ -91,6 +91,7 @@ CREATE TABLE reservacion (
   idReservacion  INT AUTO_INCREMENT PRIMARY KEY,
   fecha          DATETIME NOT NULL,
   estatus        ENUM('Pendiente','Atendida','Cancelada') NOT NULL DEFAULT 'Pendiente',
+  canal          ENUM('Web','Sucursal') NOT NULL DEFAULT 'Web',   -- Web = la hizo el cliente; Sucursal = un empleado
   idCliente      INT NOT NULL,
   idSala         INT NOT NULL,
   FOREIGN KEY (idCliente) REFERENCES cliente(idCliente),
@@ -142,6 +143,34 @@ CREATE TABLE servicioTratamientoProducto (
   PRIMARY KEY (idServicioTratamiento, idProducto),
   FOREIGN KEY (idServicioTratamiento) REFERENCES servicioTratamiento(idServicioTratamiento) ON DELETE CASCADE,
   FOREIGN KEY (idProducto) REFERENCES producto(idProducto)
+);
+
+-- ---------- Dashboard: uso de la PWA, marketing y reseñas ----------
+-- Visitas a la web y altas de la app instalada (PWA)
+CREATE TABLE IF NOT EXISTS eventoUso (
+  idEvento  INT AUTO_INCREMENT PRIMARY KEY,
+  tipo      ENUM('visita','instalacion') NOT NULL,
+  enPwa     TINYINT(1) NOT NULL DEFAULT 0,          -- 1 = abierta como app instalada
+  fecha     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Inversión en publicidad (para ROI y costo por cliente nuevo)
+CREATE TABLE IF NOT EXISTS gastoMarketing (
+  idGasto   INT AUTO_INCREMENT PRIMARY KEY,
+  canal     VARCHAR(40)   NOT NULL,                 -- Facebook, Instagram, Google, Volantes…
+  concepto  VARCHAR(120),
+  monto     DECIMAL(10,2) NOT NULL,
+  fecha     DATE          NOT NULL
+);
+
+-- Calificación del cliente a una reservación atendida (1 por reservación)
+CREATE TABLE IF NOT EXISTS resena (
+  idResena       INT AUTO_INCREMENT PRIMARY KEY,
+  calificacion   TINYINT NOT NULL CHECK (calificacion BETWEEN 1 AND 5),
+  comentario     VARCHAR(500),
+  fecha          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  idReservacion  INT NOT NULL UNIQUE,
+  FOREIGN KEY (idReservacion) REFERENCES reservacion(idReservacion)
 );
 
 -- ---------- Datos de arranque ----------

@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { roles } from '@myspa/compartido';
 import { useSesion } from './contexto/SesionContexto';
+import { usePwa } from './contexto/PwaContexto';
+import { controlaLaPagina } from './pwa/registrarServicio';
 import RutaProtegida from './componentes/RutaProtegida';
 import Diseno from './componentes/Diseno';
 import PaginaCatalogo from './componentes/PaginaCatalogo';
 import IniciarSesion from './paginas/IniciarSesion';
 import Registro from './paginas/Registro';
 import CatalogoSalas from './paginas/CatalogoSalas';
+import Dashboard from './paginas/empleado/Dashboard';
 import Reservaciones from './paginas/empleado/Reservaciones';
 import Servicios from './paginas/empleado/Servicios';
 import MisReservaciones from './paginas/cliente/MisReservaciones';
@@ -16,11 +19,14 @@ import { PantallaCarga } from './componentes/Cargando';
 import { api } from './api';
 
 const menuEmpleado = [
+  { ruta: '/empleado/dashboard', texto: 'Dashboard' },
   { ruta: '/empleado/reservaciones', texto: 'Reservaciones' },
   { ruta: '/empleado/servicios', texto: 'Servicios' },
   { ruta: '/empleado/clientes', texto: 'Clientes' },
   { ruta: '/empleado/empleados', texto: 'Empleados' },
+  { ruta: '/empleado/sucursales', texto: 'Sucursales' },
   { ruta: '/empleado/salas', texto: 'Salas' },
+  { ruta: '/empleado/horarios', texto: 'Horarios' },
   { ruta: '/empleado/tratamientos', texto: 'Tratamientos' },
   { ruta: '/empleado/productos', texto: 'Productos' },
 ];
@@ -33,16 +39,24 @@ const menuCliente = [
 
 export default function App() {
   const { sesion } = useSesion();
-  const inicio = sesion?.rol === roles.empleado ? '/empleado/reservaciones' : sesion ? '/cliente/salas' : '/salas';
+  const inicio = sesion?.rol === roles.empleado ? '/empleado/dashboard' : sesion ? '/cliente/salas' : '/salas';
+  const { marcarServidor } = usePwa();
   const [estadoServidor, setEstadoServidor] = useState('verificando'); // verificando | listo | sinConexion
 
   // Pantalla de carga inicial: verifica que la API responda (mínimo 900 ms para que se aprecie la animación)
   useEffect(() => {
     const espera = new Promise((resolver) => setTimeout(resolver, 900));
     Promise.all([api.peticion('/estado'), espera])
-      .then(() => setEstadoServidor('listo'))
-      .catch(() => espera.then(() => setEstadoServidor('sinConexion')));
-  }, []);
+      .then(() => {
+        marcarServidor(true);
+        setEstadoServidor('listo');
+      })
+      .catch(() => espera.then(() => {
+        marcarServidor(false);
+        // PWA: si el service worker ya controla la página, se abre con los datos guardados
+        setEstadoServidor(controlaLaPagina() ? 'listo' : 'sinConexion');
+      }));
+  }, [marcarServidor]);
 
   if (estadoServidor === 'verificando') return <PantallaCarga />;
   if (estadoServidor === 'sinConexion') {
@@ -58,9 +72,10 @@ export default function App() {
 
       {/* RNF 0103 - Espacio de empleados */}
       <Route element={<RutaProtegida rol={roles.empleado}><Diseno menu={menuEmpleado} /></RutaProtegida>}>
+        <Route path="/empleado/dashboard" element={<Dashboard />} />
         <Route path="/empleado/reservaciones" element={<Reservaciones />} />
         <Route path="/empleado/servicios" element={<Servicios />} />
-        {['clientes', 'empleados', 'salas', 'tratamientos', 'productos'].map((clave) => (
+        {['clientes', 'empleados', 'sucursales', 'salas', 'horarios', 'tratamientos', 'productos'].map((clave) => (
           <Route key={clave} path={`/empleado/${clave}`} element={<PaginaCatalogo clave={clave} />} />
         ))}
       </Route>

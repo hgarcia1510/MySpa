@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { formatearFecha, formatearMoneda } from '@myspa/compartido';
 import { api } from '../../api';
@@ -6,27 +6,36 @@ import { useAvisos } from '../../contexto/AvisosContexto';
 import DetalleServicio from '../../componentes/DetalleServicio';
 import { BotonCarga, CargaSeccion, EsqueletoTabla, EstadoVacio } from '../../componentes/Cargando';
 import { IconoBasura, IconoBuscar, IconoFlechaIzquierda, IconoMas, IconoMasaje } from '../../componentes/Iconos';
+import {
+  accionesFormulario, accionesServicios, crearEstadoFormulario, estadoInicialServicios, formularioReductor, serviciosReductor,
+} from '../../reductores';
 
 // RF 09 y RF 10 - Servicios y tratamientos en servicios
 export default function Servicios() {
   const { avisarExito, avisarError, confirmar } = useAvisos();
   const [parametros, setParametros] = useSearchParams();
   const idSeleccionado = parametros.get('id');
-  const [servicios, setServicios] = useState(null);
-  const [buscar, setBuscar] = useState('');
-  const [servicio, setServicio] = useState(null);
-  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [estado, despachar] = useReducer(serviciosReductor, estadoInicialServicios);
+  const { servicios, buscar, cargandoDetalle } = estado;
+  // Si no hay ?id= en la URL no se muestra ningún detalle
+  const servicio = idSeleccionado ? estado.servicio : null;
+  const mostrarServicio = (detalle) => despachar({ type: accionesServicios.detalleCargado, servicio: detalle });
 
-  const cargar = useCallback(() => api.servicios.listar({ buscar }).then(setServicios), [buscar]);
+  const cargar = useCallback(
+    () => api.servicios.listar({ buscar }).then((lista) => despachar({ type: accionesServicios.cargados, servicios: lista })),
+    [buscar]
+  );
   useEffect(() => { const t = setTimeout(cargar, 300); return () => clearTimeout(t); }, [cargar]);
 
   useEffect(() => {
-    if (!idSeleccionado) return setServicio(null);
-    setCargandoDetalle(true);
+    if (!idSeleccionado) return;
+    despachar({ type: accionesServicios.detalleInicio });
     api.servicios.obtenerDetalle(idSeleccionado)
-      .then(setServicio)
-      .catch((error) => avisarError('No se pudo abrir el servicio', error.message))
-      .finally(() => setCargandoDetalle(false));
+      .then(mostrarServicio)
+      .catch((error) => {
+        despachar({ type: accionesServicios.detalleFallido });
+        avisarError('No se pudo abrir el servicio', error.message);
+      });
   }, [idSeleccionado, avisarError]);
 
   async function quitarTratamiento(tratamiento) {
@@ -37,7 +46,7 @@ export default function Servicios() {
       peligro: true,
     });
     if (!confirmado) return;
-    setServicio(await api.servicios.quitarTratamiento(servicio.idServicio, tratamiento.idServicioTratamiento));
+    mostrarServicio(await api.servicios.quitarTratamiento(servicio.idServicio, tratamiento.idServicioTratamiento));
     avisarExito('Tratamiento quitado', 'El costo del servicio se recalculó.');
     cargar();
   }
@@ -69,7 +78,7 @@ export default function Servicios() {
           <div className="barraBusqueda">
             <div className="campoBusqueda">
               <IconoBuscar />
-              <input placeholder="Buscar por cliente, empleado, sala…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+              <input placeholder="Buscar por cliente, empleado, sala…" value={buscar} onChange={(e) => despachar({ type: accionesServicios.cambiarBusqueda, buscar: e.target.value })} />
             </div>
           </div>
           {!servicios ? <EsqueletoTabla renglones={4} /> : !servicios.length ? (
@@ -94,7 +103,7 @@ export default function Servicios() {
           {cargandoDetalle ? <CargaSeccion texto="Abriendo servicio…" /> : servicio ? (
             <div className="detalleServicio" key={servicio.idServicio}>
               <DetalleServicio servicio={servicio} alQuitarTratamiento={quitarTratamiento} />
-              <AgregarTratamiento idServicio={servicio.idServicio} alAgregar={(detalle) => { setServicio(detalle); cargar(); }} />
+              <AgregarTratamiento idServicio={servicio.idServicio} alAgregar={(detalle) => { mostrarServicio(detalle); cargar(); }} />
               <div><button className="botonPeligro" onClick={eliminarServicio}><IconoBasura /> Eliminar servicio</button></div>
             </div>
           ) : (
@@ -109,35 +118,34 @@ export default function Servicios() {
 // RF 1001 / 1002 - Agregar tratamiento (buscable) con sus productos
 function AgregarTratamiento({ idServicio, alAgregar }) {
   const { avisarExito } = useAvisos();
-  const [buscarTratamiento, setBuscarTratamiento] = useState('');
-  const [tratamientos, setTratamientos] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [idTratamiento, setIdTratamiento] = useState('');
-  const [idsProducto, setIdsProducto] = useState([]);
-  const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  const [{ datos, error, guardando, opciones }, despachar] = useReducer(
+    formularioReductor,
+    { buscarTratamiento: '', idTratamiento: '', idsProducto: [] },
+    crearEstadoFormulario
+  );
+  const { tratamientos = [], productos = [] } = opciones;
+  const { buscarTratamiento, idTratamiento, idsProducto } = datos;
+  const cambiarCampo = (campo, valor) => despachar({ type: accionesFormulario.cambiarCampo, campo, valor });
 
-  useEffect(() => { api.productos.listar().then(setProductos); }, []);
-  useEffect(() => { api.tratamientos.listar({ buscar: buscarTratamiento }).then(setTratamientos); }, [buscarTratamiento]);
-
-  const alternarProducto = (id) =>
-    setIdsProducto((actuales) => (actuales.includes(id) ? actuales.filter((x) => x !== id) : [...actuales, id]));
+  useEffect(() => {
+    api.productos.listar().then((lista) => despachar({ type: accionesFormulario.cargarOpciones, opciones: { productos: lista } }));
+  }, []);
+  useEffect(() => {
+    api.tratamientos.listar({ buscar: buscarTratamiento })
+      .then((lista) => despachar({ type: accionesFormulario.cargarOpciones, opciones: { tratamientos: lista } }));
+  }, [buscarTratamiento]);
 
   const costoEstimado = productos.filter((producto) => idsProducto.includes(producto.idProducto)).reduce((suma, producto) => suma + Number(producto.precioUso), 0);
 
   async function agregar(evento) {
     evento.preventDefault();
-    setGuardando(true);
+    despachar({ type: accionesFormulario.enviar });
     try {
       alAgregar(await api.servicios.agregarTratamiento(idServicio, { idTratamiento, idsProducto }));
       avisarExito('Tratamiento agregado', `Se sumaron ${formatearMoneda(costoEstimado)} al servicio.`);
-      setIdTratamiento('');
-      setIdsProducto([]);
-      setError('');
+      despachar({ type: accionesFormulario.exito, reiniciar: true });
     } catch (errorAgregar) {
-      setError(errorAgregar.message);
-    } finally {
-      setGuardando(false);
+      despachar({ type: accionesFormulario.fallo, error: errorAgregar.message });
     }
   }
 
@@ -147,9 +155,9 @@ function AgregarTratamiento({ idServicio, alAgregar }) {
       <div className="rejillaFormulario">
         <div className="campoBusqueda">
           <IconoBuscar />
-          <input placeholder="Buscar tratamiento…" value={buscarTratamiento} onChange={(e) => setBuscarTratamiento(e.target.value)} />
+          <input placeholder="Buscar tratamiento…" value={buscarTratamiento} onChange={(e) => cambiarCampo('buscarTratamiento', e.target.value)} />
         </div>
-        <select required value={idTratamiento} onChange={(e) => setIdTratamiento(e.target.value)}>
+        <select required value={idTratamiento} onChange={(e) => cambiarCampo('idTratamiento', e.target.value)}>
           <option value="">Selecciona un tratamiento…</option>
           {tratamientos.map((tratamiento) => <option key={tratamiento.idTratamiento} value={tratamiento.idTratamiento}>{tratamiento.nombre}</option>)}
         </select>
@@ -158,7 +166,8 @@ function AgregarTratamiento({ idServicio, alAgregar }) {
       <div className="listaCasillas">
         {productos.map((producto) => (
           <label key={producto.idProducto} className="casilla">
-            <input type="checkbox" checked={idsProducto.includes(producto.idProducto)} onChange={() => alternarProducto(producto.idProducto)} />
+            <input type="checkbox" checked={idsProducto.includes(producto.idProducto)}
+              onChange={() => despachar({ type: accionesFormulario.alternarEnLista, campo: 'idsProducto', valor: producto.idProducto })} />
             {producto.nombre} <span className="textoTenue">({formatearMoneda(producto.precioUso)})</span>
           </label>
         ))}

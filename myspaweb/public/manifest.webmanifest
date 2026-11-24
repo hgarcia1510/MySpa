@@ -1,0 +1,43 @@
+{
+  "id": "./",
+  "name": "MySPA · Reservaciones y bienestar",
+  "short_name": "MySPA",
+  "description": "Reserva salas y tratamientos de spa y administra el negocio desde cualquier dispositivo.",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#7c6fe0",
+  "background_color": "#ffffff",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Salas",
+      "short_name": "Salas",
+      "description": "Ver salas y reservar",
+      "url": "./salas",
+      "icons": [{ "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Mis reservaciones",
+      "short_name": "Reservaciones",
+      "description": "Historial y próximas citas",
+      "url": "./cliente/reservaciones",
+      "icons": [{ "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Indicadores del negocio (empleados)",
+      "url": "./empleado/dashboard",
+      "icons": [{ "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

@@ -54,6 +54,18 @@ export function crearClienteApi({ urlBase, obtenerToken }) {
       listarMias: () => peticion('/reservaciones/mias'),
       obtenerDetalle: (idReservacion) => peticion(`/reservaciones/${idReservacion}/detalle`),
     },
+    resenas: {
+      crear: ({ idReservacion, calificacion, comentario }) =>
+        peticion('/resenas', { metodo: 'POST', cuerpo: { idReservacion, calificacion, comentario } }),
+    },
+    dashboard: {
+      obtener: ({ dias = 30, idSucursal = '' } = {}) => {
+        const parametros = new URLSearchParams({ dias: String(dias), ...(idSucursal && { idSucursal: String(idSucursal) }) });
+        return peticion(`/dashboard?${parametros}`);
+      },
+      registrarGasto: (datos) => peticion('/dashboard/gastos', { metodo: 'POST', cuerpo: datos }),
+      eliminarGasto: (idGasto) => peticion(`/dashboard/gastos/${idGasto}`, { metodo: 'DELETE' }),
+    },
     servicios: {
       ...crearRecurso('servicios'),
       obtenerDetalle: (idServicio) => peticion(`/servicios/${idServicio}/detalle`),

@@ -24,3 +24,11 @@ export const IconoHoja = (p) => <Icono {...p}><path d="M11 20A7 7 0 0 1 4 13c0-6
 export const IconoFlechaIzquierda = (p) => <Icono {...p}><path d="M19 12H5M12 19l-7-7 7-7" /></Icono>;
 export const IconoMasaje = (p) => <Icono {...p}><circle cx="17" cy="6" r="2" /><path d="M3 15h13a3 3 0 0 0 3-3v-1" /><path d="M2 19h20" /><path d="M7 15l2-4h5" /></Icono>;
 export const IconoBrillo = (p) => <Icono {...p}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" /><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8Z" /></Icono>;
+export const IconoDescargar = (p) => <Icono {...p}><path d="M12 3v12M7 10l5 5 5-5" /><path d="M5 21h14" /></Icono>;
+export const IconoGrafica = (p) => <Icono {...p}><path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 6-6" /></Icono>;
+/** Estrella de calificación: con relleno = marcada. */
+export const IconoEstrella = ({ relleno = false, ...p }) => (
+  <Icono {...p}>
+    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9Z" fill={relleno ? 'currentColor' : 'none'} />
+  </Icono>
+);

@@ -8,6 +8,9 @@ import { empleadosRutas, clientesRutas } from './rutas/personasRutas.js';
 import { productosRutas, sucursalesRutas, horariosRutas, tratamientosRutas, salasRutas } from './rutas/catalogosRutas.js';
 import { reservacionesRutas } from './rutas/reservacionesRutas.js';
 import { serviciosRutas } from './rutas/serviciosRutas.js';
+import { dashboardRutas } from './rutas/dashboardRutas.js';
+import { metricasRutas } from './rutas/metricasRutas.js';
+import { resenasRutas } from './rutas/resenasRutas.js';
 
 const aplicacion = express();
 aplicacion.use(cors());
@@ -25,6 +28,9 @@ aplicacion.use('/api/horarios', horariosRutas);
 aplicacion.use('/api/tratamientos', tratamientosRutas);
 aplicacion.use('/api/reservaciones', reservacionesRutas);
 aplicacion.use('/api/servicios', serviciosRutas);
+aplicacion.use('/api/dashboard', dashboardRutas);
+aplicacion.use('/api/metricas', metricasRutas);
+aplicacion.use('/api/resenas', resenasRutas);
 
 aplicacion.use(manejarErrores);
 

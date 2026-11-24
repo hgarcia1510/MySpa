@@ -4,3 +4,4 @@ export * from './validaciones.js';
 export * from './costos.js';
 export * from './catalogos.js';
 export * from './clienteApi.js';
+export * from './indicadores.js';

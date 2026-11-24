@@ -82,6 +82,43 @@ Abre **http://localhost:5173** en el navegador.
 - Si la API está en otra computadora, crea `myspaweb/.env` con:
   `VITE_URL_API=http://IP_DE_LA_PC:3000`
 
+### PWA (instalar la web como app)
+
+El service worker **solo funciona en la versión de producción** (con `npm run dev` no se activa para no romper la recarga automática). Para probar la PWA:
+
+```bash
+cd myspaweb
+npm run pwa
+```
+
+Abre **http://localhost:4173** en Chrome o Edge y usa el botón **Instalar app** del encabezado. Una vez abierta, la app sigue funcionando sin internet o con la API apagada, mostrando la última información guardada (las altas y cambios sí necesitan conexión). Cuando publiques una versión nueva aparece la barra **«Hay una nueva versión»** con el botón *Actualizar*.
+
+| Archivo | Para qué sirve |
+|---|---|
+| `myspaweb/public/manifest.webmanifest` | Nombre, colores, íconos y accesos directos de la app |
+| `myspaweb/public/iconos/` | Íconos 192/512, maskable y Apple (generados del logo) |
+| `myspaweb/public/sw.js` | Service worker: caché de la app, de la API y de las imágenes |
+| `myspaweb/src/pwa/registrarServicio.js` | Registro del service worker, actualizaciones y métricas de uso |
+| `myspaweb/src/contexto/PwaContexto.jsx` | Estado de la PWA (conexión, instalar, actualizar) |
+| `myspaweb/src/componentes/BarraPwa.jsx` | Botón *Instalar app* y barras de aviso |
+
+### Reducers
+
+El estado de la web se maneja con `useReducer` + Context (sin Redux). Los reducers están en `myspaweb/src/reductores/` y son funciones puras: sesión, avisos, catálogos, listados (reservaciones, mis reservaciones, salas, servicios), formularios, PWA y dashboard.
+
+### Dashboard administrativo
+
+Menú **Dashboard** del empleado (es su página de inicio). Se filtra por periodo (7, 30, 90 o 365 días) y por sucursal, y muestra:
+
+- **Indicadores:** ingresos y su variación, servicios, ticket promedio, reservaciones, cancelación, inasistencia y clientes nuevos.
+- **Ventas:** reservaciones e ingresos por día, ingresos por sucursal y reservaciones por canal (Web = la hizo el cliente, Sucursal = la capturó un empleado).
+- **Clientes:** retención, género y mejores clientes.
+- **Comportamiento de compra:** tratamientos, productos y ocupación de salas.
+- **Marketing y uso de la PWA:** visitas, instalaciones, conversión, gastos de marketing, ROI y costo por cliente nuevo (los gastos se registran con el botón *Registrar gasto de marketing*).
+- **Feedback:** calificaciones que dejan los clientes en *Mis reservaciones → Calificar*.
+
+> Si tu base de datos ya existía, **la API la actualiza sola** al arrancar (crea `eventoUso`, `gastoMarketing` y `resena` desde `baseDatos/extensionesDashboard.sql` y agrega la columna `reservacion.canal`).
+
 ---
 
 ## 3. App móvil
@@ -144,16 +181,22 @@ Solo hay dos roles: **Empleado** y **Cliente**.
 |---|---|---|
 | `admin` | `admin123` | Empleado (Gerente) |
 
-- **Empleado** (web y móvil): reservaciones, servicios, sucursales, horarios, clientes, productos, salas.
+- **Empleado** (web y móvil): dashboard, reservaciones, servicios, sucursales, horarios, clientes, productos, salas.
 - **Cliente**: se registra en la web; en la app ve sus reservaciones, salas y sucursales.
 
 ---
 
-## Pruebas del código compartido
+## Pruebas
 
 ```bash
 cd compartido
-npm test
+npm test        # reglas de negocio e indicadores del dashboard
+
+cd ../api
+npm test        # dashboard contra una base SQLite en memoria (Node 22.5 o superior)
+
+cd ../myspaweb
+npm test        # reducers
 ```
 
 ---

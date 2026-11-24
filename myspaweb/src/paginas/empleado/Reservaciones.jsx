@@ -1,24 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { estatusReservacion, formatearFecha, formatearFechaBd } from '@myspa/compartido';
 import { api } from '../../api';
 import { useAvisos } from '../../contexto/AvisosContexto';
 import { BotonCarga, EsqueletoTabla, EstadoVacio } from '../../componentes/Cargando';
 import { IconoAlerta, IconoBuscar, IconoCalendario, IconoEditar, IconoMas, IconoX } from '../../componentes/Iconos';
+import {
+  accionesFormulario, accionesReservaciones, crearEstadoFormulario, estadoInicialReservaciones, formularioReductor, reservacionesReductor,
+} from '../../reductores';
 
 // RF 07 - Gestión de reservaciones (espacio de empleados)
 export default function Reservaciones() {
   const navegar = useNavigate();
   const { avisarExito, avisarError, confirmar } = useAvisos();
-  const [reservaciones, setReservaciones] = useState(null);
-  const [buscar, setBuscar] = useState('');
-  const [estatus, setEstatus] = useState('');
-  const [editando, setEditando] = useState(null);
+  const [{ reservaciones, buscar, estatus, editando }, despachar] = useReducer(reservacionesReductor, estadoInicialReservaciones);
 
   const cargar = useCallback(
-    () => api.reservaciones.listar({ buscar, ...(estatus && { estatus }) }).then(setReservaciones).catch((e) => avisarError('No se pudieron cargar', e.message)),
+    () => api.reservaciones.listar({ buscar, ...(estatus && { estatus }) })
+      .then((lista) => despachar({ type: accionesReservaciones.cargadas, reservaciones: lista }))
+      .catch((e) => avisarError('No se pudieron cargar', e.message)),
     [buscar, estatus, avisarError]
   );
+  const editar = (reservacion) => despachar({ type: accionesReservaciones.editar, reservacion });
+  const cerrarEdicion = () => despachar({ type: accionesReservaciones.cerrarEdicion });
   useEffect(() => { const t = setTimeout(cargar, 300); return () => clearTimeout(t); }, [cargar]);
 
   async function cancelar(reservacion) {
@@ -63,14 +67,14 @@ export default function Reservaciones() {
           <h1>Reservaciones</h1>
           <p>De la más reciente a la más antigua. Atiende, edita o cancela las pendientes.</p>
         </div>
-        <button onClick={() => setEditando({})}><IconoMas /> Nueva reservación</button>
+        <button onClick={() => editar({})}><IconoMas /> Nueva reservación</button>
       </div>
       <div className="barraBusqueda">
         <div className="campoBusqueda">
           <IconoBuscar />
-          <input placeholder="Buscar por cliente, sala, sucursal, fecha…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+          <input placeholder="Buscar por cliente, sala, sucursal, fecha…" value={buscar} onChange={(e) => despachar({ type: accionesReservaciones.cambiarBusqueda, buscar: e.target.value })} />
         </div>
-        <select value={estatus} onChange={(e) => setEstatus(e.target.value)}>
+        <select value={estatus} onChange={(e) => despachar({ type: accionesReservaciones.cambiarEstatus, estatus: e.target.value })}>
           <option value="">Todos los estatus</option>
           {Object.values(estatusReservacion).map((valor) => <option key={valor}>{valor}</option>)}
         </select>
@@ -96,7 +100,7 @@ export default function Reservaciones() {
                       {reservacion.estatus === estatusReservacion.pendiente && (
                         <>
                           <button className="botonChico" onClick={() => atender(reservacion)}>Atender</button>
-                          <button className="botonSecundario botonChico" onClick={() => setEditando(reservacion)} title="Editar"><IconoEditar tamanio={15} /></button>
+                          <button className="botonSecundario botonChico" onClick={() => editar(reservacion)} title="Editar"><IconoEditar tamanio={15} /></button>
                           <button className="botonPeligro botonChico" onClick={() => cancelar(reservacion)} title="Cancelar"><IconoX tamanio={15} /></button>
                         </>
                       )}
@@ -113,8 +117,8 @@ export default function Reservaciones() {
       )}
 
       {editando && (
-        <FormularioReservacion reservacion={editando} alCerrar={() => setEditando(null)}
-          alGuardar={(esAlta) => { setEditando(null); avisarExito(esAlta ? 'Reservación creada' : 'Reservación actualizada', esAlta ? 'Se envió un correo al cliente.' : undefined); cargar(); }} />
+        <FormularioReservacion reservacion={editando} alCerrar={cerrarEdicion}
+          alGuardar={(esAlta) => { cerrarEdicion(); avisarExito(esAlta ? 'Reservación creada' : 'Reservación actualizada', esAlta ? 'Se envió un correo al cliente.' : undefined); cargar(); }} />
       )}
     </section>
   );
@@ -122,33 +126,30 @@ export default function Reservaciones() {
 
 function FormularioReservacion({ reservacion, alCerrar, alGuardar }) {
   const esAlta = !reservacion.idReservacion;
-  const [clientes, setClientes] = useState([]);
-  const [salas, setSalas] = useState([]);
-  const [datos, setDatos] = useState({
+  const [{ datos, error, guardando, opciones }, despachar] = useReducer(formularioReductor, {
     idCliente: reservacion.idCliente ?? '',
     idSala: reservacion.idSala ?? '',
     fecha: reservacion.fecha ? reservacion.fecha.slice(0, 16).replace(' ', 'T') : '',
-  });
-  const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  }, crearEstadoFormulario);
+  const { clientes = [], salas = [] } = opciones;
+  const cambiarCampo = (campo) => (e) => despachar({ type: accionesFormulario.cambiarCampo, campo, valor: e.target.value });
 
   useEffect(() => {
-    api.clientes.listar().then(setClientes);
-    api.salas.listar().then(setSalas);
+    api.clientes.listar().then((lista) => despachar({ type: accionesFormulario.cargarOpciones, opciones: { clientes: lista } }));
+    api.salas.listar().then((lista) => despachar({ type: accionesFormulario.cargarOpciones, opciones: { salas: lista } }));
   }, []);
 
   async function guardar(evento) {
     evento.preventDefault();
     const cuerpo = { ...datos, fecha: datos.fecha.replace('T', ' ') };
-    setGuardando(true);
+    despachar({ type: accionesFormulario.enviar });
     try {
       if (esAlta) await api.reservaciones.crear(cuerpo);
       else await api.reservaciones.actualizar(reservacion.idReservacion, { fecha: cuerpo.fecha, idSala: cuerpo.idSala });
+      despachar({ type: accionesFormulario.exito });
       alGuardar(esAlta);
     } catch (errorGuardar) {
-      setError(errorGuardar.message);
-    } finally {
-      setGuardando(false);
+      despachar({ type: accionesFormulario.fallo, error: errorGuardar.message });
     }
   }
 
@@ -157,7 +158,7 @@ function FormularioReservacion({ reservacion, alCerrar, alGuardar }) {
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={guardar}>
         <h2>{esAlta ? 'Nueva reservación' : `Editar reservación #${reservacion.idReservacion}`}</h2>
         <label className="campo"><span>Cliente</span>
-          <select required disabled={!esAlta} value={datos.idCliente} onChange={(e) => setDatos({ ...datos, idCliente: e.target.value })}>
+          <select required disabled={!esAlta} value={datos.idCliente} onChange={cambiarCampo('idCliente')}>
             <option value="">Selecciona…</option>
             {clientes.map((cliente) => (
               <option key={cliente.idCliente} value={cliente.idCliente}>{cliente.nombre} {cliente.apellidoPaterno} ({cliente.numeroUnico})</option>
@@ -166,13 +167,13 @@ function FormularioReservacion({ reservacion, alCerrar, alGuardar }) {
         </label>
         <div className="rejillaFormulario">
           <label className="campo"><span>Sala</span>
-            <select required value={datos.idSala} onChange={(e) => setDatos({ ...datos, idSala: e.target.value })}>
+            <select required value={datos.idSala} onChange={cambiarCampo('idSala')}>
               <option value="">Selecciona…</option>
               {salas.map((sala) => <option key={sala.idSala} value={sala.idSala}>{sala.nombre} — {sala.nombreSucursal}</option>)}
             </select>
           </label>
           <label className="campo"><span>Fecha y hora</span>
-            <input type="datetime-local" required value={datos.fecha} onChange={(e) => setDatos({ ...datos, fecha: e.target.value })} />
+            <input type="datetime-local" required value={datos.fecha} onChange={cambiarCampo('fecha')} />
           </label>
         </div>
         {error && <p className="mensajeError"><IconoAlerta tamanio={16} /> {error}</p>}

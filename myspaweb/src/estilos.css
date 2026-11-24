@@ -134,7 +134,9 @@ textarea { min-height: 90px; resize: vertical; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 600; background: var(--degradadoMarca); font-size: .9rem; }
 .datosUsuario { display: flex; flex-direction: column; line-height: 1.15; font-size: .85rem; }
 .datosUsuario small { color: var(--colorTenue); font-size: .74rem; }
-.contenido { padding: 1.8rem 1.6rem 3rem; max-width: 1240px; margin: 0 auto; animation: aparecer .45s var(--transicion) both; }
+/* backwards (no both): si el transform se quedara al terminar, .contenido crearía un contenedor
+   y los modales position: fixed se cortarían cuando la página está desplazada */
+.contenido { padding: 1.8rem 1.6rem 3rem; max-width: 1240px; margin: 0 auto; animation: aparecer .45s var(--transicion) backwards; }
 
 .barraTitulo { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .encabezadoPagina { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
@@ -295,11 +297,85 @@ tbody tr:last-child td { border-bottom: none; }
 .cabeceraPerfil { display: flex; align-items: center; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--colorBorde); }
 .cabeceraPerfil .avatar { width: 64px; height: 64px; font-size: 1.4rem; }
 
+/* ---------- PWA: botón instalar y barras de aviso ---------- */
+.botonInstalar { background: var(--colorSecundarioSuave); color: #2f8f80; box-shadow: none; }
+.botonInstalar:hover { background: #d3efe9; box-shadow: none; }
+.barraPwa { display: flex; align-items: center; justify-content: center; gap: .6rem; flex-wrap: wrap; padding: .55rem 1.6rem; font-size: .86rem; animation: desvanecer .3s both; }
+.barraPwaSinConexion { background: #fdf3df; color: #8a6418; border-bottom: 1px solid #f3dfb4; }
+.barraPwaActualizacion { background: var(--colorPrincipalSuave); color: var(--colorPrincipalOscuro); border-bottom: 1px solid #ddd8fb; }
+
+/* Botón con apariencia de enlace (por ejemplo "Ver mapa") */
+.botonEnlace { background: none; box-shadow: none; padding: 0; color: var(--colorPrincipal); font-weight: 500; gap: .3rem; }
+.botonEnlace:hover { background: none; box-shadow: none; transform: none; text-decoration: underline; }
+
+/* ---------- Mapa de la sucursal (RF 0406) ---------- */
+.mapaSucursal { width: 100%; height: min(420px, 60vh); border: 0; border-radius: var(--radio); background: var(--colorFondoSuave); }
+.mapaSinConexion { display: grid; place-items: center; }
+
+/* ---------- Estrellas (reseñas) ---------- */
+.estrellas { display: inline-flex; gap: .1rem; color: #d9d6e8; }
+.estrellas .estrellaMarcada { color: var(--colorAdvertencia); }
+.estrellas span { display: inline-flex; }
+.selectorEstrellas { display: flex; gap: .3rem; justify-content: center; }
+.selectorEstrellas button { background: none; box-shadow: none; padding: .2rem; color: #d9d6e8; }
+.selectorEstrellas button:hover { background: none; box-shadow: none; color: var(--colorAdvertencia); transform: scale(1.12); }
+.selectorEstrellas button.estrellaMarcada { color: var(--colorAdvertencia); }
+
+/* ---------- Dashboard ---------- */
+.filtrosDashboard > select { flex: 0 1 230px; }
+.contenidoDashboard { transition: opacity var(--transicion); }
+.contenidoDashboard.actualizando { opacity: .55; pointer-events: none; }
+.rejillaIndicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.8rem; }
+.indicadorDashboard { gap: .25rem; animation: aparecer .4s var(--transicion) both; }
+.indicadorDashboard small { color: var(--colorTenue); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+.indicadorDashboard > b { font-size: 1.55rem; font-weight: 600; letter-spacing: -.02em; }
+.variacion { font-size: .78rem; font-weight: 500; color: var(--colorTenue); }
+.variacion.positivo { color: var(--colorExito); }
+.variacion.negativo { color: #c25a5a; }
+.detalleIndicador { color: var(--colorTenue); font-size: .78rem; }
+
+.seccionDashboard { margin-bottom: 2rem; }
+.seccionDashboard > h2 { font-size: 1.15rem; margin-bottom: .9rem; display: flex; align-items: center; gap: .6rem; }
+.seccionDashboard > h2::after { content: ''; flex: 1; height: 1px; background: var(--colorBorde); }
+.rejillaDashboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+.panelDashboard { gap: .9rem; animation: aparecer .45s var(--transicion) both; }
+.panelDashboard h3 { font-size: 1rem; }
+.panelAncho { grid-column: 1 / -1; }
+.subtituloPanel { margin-top: -.6rem; font-size: .8rem; }
+.sinDatos { padding: 1.4rem 0; text-align: center; }
+
+.cifrasPanel { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .8rem; }
+.cifra { display: flex; flex-direction: column; gap: .1rem; padding: .75rem .9rem; border-radius: var(--radioChico); background: var(--colorFondoSuave); }
+.cifra b { font-size: 1.25rem; font-weight: 600; }
+.cifra small { color: var(--colorTenue); font-size: .76rem; }
+.cifra.positivo b { color: var(--colorExito); }
+.cifra.negativo b { color: #c25a5a; }
+
+.barrasHorizontales { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .7rem; }
+.textoBarra { display: flex; justify-content: space-between; gap: .6rem; font-size: .85rem; margin-bottom: .3rem; }
+.textoBarra span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.textoBarra b { font-weight: 500; color: var(--colorTenue); white-space: nowrap; }
+.pistaBarra { height: 10px; border-radius: 4px; background: var(--colorFondoSuave); overflow: hidden; }
+.pistaBarra span { display: block; height: 100%; min-width: 2px; border-radius: 4px; transition: width .6s var(--transicion); }
+
+.graficaSvg { width: 100%; height: auto; display: block; overflow: visible; }
+.graficaSvg .lineaBase { stroke: var(--colorBorde); stroke-width: 1; }
+.graficaSvg .ejeGrafica { fill: var(--colorTenue); font-size: 11px; font-family: inherit; }
+.graficaSvg .marcaGrafica:hover rect:not([fill="transparent"]), .graficaSvg .marcaGrafica:hover circle:not([fill="transparent"]) { opacity: .75; }
+
+.listaGastos, .listaComentarios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.listaGastos li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid var(--colorBorde); }
+.listaGastos li > div { display: flex; flex-direction: column; }
+.listaGastos li:last-child, .listaComentarios li:last-child { border-bottom: none; }
+.listaComentarios li { padding: .7rem 0; border-bottom: 1px solid var(--colorBorde); display: flex; flex-direction: column; gap: .25rem; }
+.listaComentarios p { margin: 0; font-size: .9rem; }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 900px) {
   .pantallaAcceso { grid-template-columns: 1fr; }
   .panelMarca { padding: 2rem 1.5rem; min-height: 240px; gap: 1.5rem; }
   .dosColumnas { grid-template-columns: 1fr; }
+  .rejillaDashboard { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .contenido { padding: 1.2rem 1rem 2.5rem; }

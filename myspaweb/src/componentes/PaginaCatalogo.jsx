@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { catalogos, etiquetasColumnas, formatearMoneda } from '@myspa/compartido';
 import { api, urlServidor } from '../api';
 import { useAvisos } from '../contexto/AvisosContexto';
@@ -6,6 +6,7 @@ import CampoFormulario from './CampoFormulario';
 import AsignarHorarios from './AsignarHorarios';
 import { BotonCarga, EsqueletoTabla, EstadoVacio } from './Cargando';
 import { IconoAlerta, IconoBasura, IconoBuscar, IconoEditar, IconoMas, IconoReloj } from './Iconos';
+import { accionesCatalogo, catalogoReductor, estadoInicialCatalogo } from '../reductores';
 
 const subtitulos = {
   empleados: 'Personal del spa, sus puestos y accesos al sistema.',
@@ -13,9 +14,14 @@ const subtitulos = {
   productos: 'Productos que se usan en los tratamientos y su precio de uso.',
   salas: 'Salas de cada sucursal, sus fotos y horarios.',
   tratamientos: 'Tratamientos que ofrece el spa.',
+  sucursales: 'Sucursales del spa y su ubicación en el mapa.',
+  horarios: 'Horarios que se pueden asignar a las salas para reservar.',
 };
 
-const singulares = { empleados: 'empleado', clientes: 'cliente', productos: 'producto', salas: 'sala', tratamientos: 'tratamiento' };
+const singulares = {
+  empleados: 'empleado', clientes: 'cliente', productos: 'producto', salas: 'sala',
+  tratamientos: 'tratamiento', sucursales: 'sucursal', horarios: 'horario',
+};
 
 /**
  * Pantalla genérica de catálogo: listado, búsqueda por cualquier campo,
@@ -26,24 +32,21 @@ export default function PaginaCatalogo({ clave }) {
   const recursoApi = api[catalogo.recurso];
   const { avisarExito, avisarError, confirmar } = useAvisos();
 
-  const [registros, setRegistros] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [buscar, setBuscar] = useState('');
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
-  const [registroEditado, setRegistroEditado] = useState(null); // null = cerrado, {} = alta
-  const [error, setError] = useState('');
-  const [salaHorarios, setSalaHorarios] = useState(null);
+  const [estado, despachar] = useReducer(catalogoReductor, estadoInicialCatalogo);
+  const { registros, cargando, guardando, buscar, mostrarInactivos, registroEditado, error, salaHorarios } = estado;
 
   const cargar = useCallback(async () => {
     try {
-      setRegistros(await recursoApi.listar({ buscar, inactivos: mostrarInactivos }));
+      despachar({ type: accionesCatalogo.cargaExitosa, registros: await recursoApi.listar({ buscar, inactivos: mostrarInactivos }) });
     } catch (errorCarga) {
+      despachar({ type: accionesCatalogo.cargaFallida });
       avisarError('No se pudo cargar la lista', errorCarga.message);
-    } finally {
-      setCargando(false);
     }
   }, [recursoApi, buscar, mostrarInactivos, avisarError]);
+
+  const abrirFormulario = (registro) => despachar({ type: accionesCatalogo.abrirFormulario, registro });
+  const cerrarFormulario = () => despachar({ type: accionesCatalogo.cerrarFormulario });
+  const cambiarCampo = (campo, valor) => despachar({ type: accionesCatalogo.cambiarCampo, campo, valor });
 
   useEffect(() => {
     const temporizador = setTimeout(cargar, 300); // búsqueda mientras escribe
@@ -56,7 +59,6 @@ export default function PaginaCatalogo({ clave }) {
 
   async function guardar(evento) {
     evento.preventDefault();
-    setError('');
     const tieneArchivo = camposVisibles.some((campo) => campo.tipo === 'imagen' && registroEditado[campo.nombre] instanceof File);
     let datos = {};
     for (const campo of camposVisibles) {
@@ -71,17 +73,15 @@ export default function PaginaCatalogo({ clave }) {
       Object.entries(datos).forEach(([nombre, valor]) => formulario.append(nombre, valor));
       datos = formulario;
     }
-    setGuardando(true);
+    despachar({ type: accionesCatalogo.guardarInicio });
     try {
       const resultado = esAlta ? await recursoApi.crear(datos) : await recursoApi.actualizar(registroEditado[catalogo.llave], datos);
       const numeroGenerado = resultado?.numeroEmpleado ?? resultado?.numeroUnico;
       avisarExito(esAlta ? 'Registro creado' : 'Cambios guardados', numeroGenerado ? `Número asignado: ${numeroGenerado}` : 'La información se guardó correctamente.');
-      setRegistroEditado(null);
+      despachar({ type: accionesCatalogo.guardarExito });
       cargar();
     } catch (errorGuardar) {
-      setError(errorGuardar.message);
-    } finally {
-      setGuardando(false);
+      despachar({ type: accionesCatalogo.guardarError, error: errorGuardar.message });
     }
   }
 
@@ -121,17 +121,17 @@ export default function PaginaCatalogo({ clave }) {
           <h1>{catalogo.titulo}</h1>
           <p>{subtitulos[clave]}</p>
         </div>
-        <button onClick={() => { setError(''); setRegistroEditado({}); }}><IconoMas /> Nuevo</button>
+        <button onClick={() => abrirFormulario()}><IconoMas /> Nuevo</button>
       </div>
 
       <div className="barraBusqueda">
         <div className="campoBusqueda">
           <IconoBuscar />
-          <input placeholder="Buscar por cualquier campo…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+          <input placeholder="Buscar por cualquier campo…" value={buscar} onChange={(e) => despachar({ type: accionesCatalogo.cambiarBusqueda, buscar: e.target.value })} />
         </div>
         {catalogo.conEstatus && (
           <label className="casilla">
-            <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
+            <input type="checkbox" checked={mostrarInactivos} onChange={() => despachar({ type: accionesCatalogo.alternarInactivos })} />
             Mostrar inactivos
           </label>
         )}
@@ -168,9 +168,9 @@ export default function PaginaCatalogo({ clave }) {
                   <td>
                     <div className="accionesFila">
                       {catalogo.conHorarios && (
-                        <button className="botonSecundario botonChico" onClick={() => setSalaHorarios(registro)}><IconoReloj tamanio={15} /> Horarios</button>
+                        <button className="botonSecundario botonChico" onClick={() => despachar({ type: accionesCatalogo.abrirHorarios, sala: registro })}><IconoReloj tamanio={15} /> Horarios</button>
                       )}
-                      <button className="botonSecundario botonChico" onClick={() => { setError(''); setRegistroEditado(registro); }}><IconoEditar tamanio={15} /> Editar</button>
+                      <button className="botonSecundario botonChico" onClick={() => abrirFormulario(registro)}><IconoEditar tamanio={15} /> Editar</button>
                       {registro.estatus !== 'Inactivo' && (
                         <button className="botonPeligro botonChico" onClick={() => eliminar(registro)}><IconoBasura tamanio={15} /></button>
                       )}
@@ -183,10 +183,10 @@ export default function PaginaCatalogo({ clave }) {
         </div>
       )}
 
-      {salaHorarios && <AsignarHorarios sala={salaHorarios} alCerrar={() => setSalaHorarios(null)} />}
+      {salaHorarios && <AsignarHorarios sala={salaHorarios} alCerrar={() => despachar({ type: accionesCatalogo.cerrarHorarios })} />}
 
       {registroEditado && (
-        <div className="fondoModal" onClick={() => setRegistroEditado(null)}>
+        <div className="fondoModal" onClick={cerrarFormulario}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={guardar}>
             <h2>{esAlta ? `Nuevo ${nombreSingular}` : `Editar ${nombreSingular}`}</h2>
             <div className="rejillaFormulario">
@@ -197,13 +197,13 @@ export default function PaginaCatalogo({ clave }) {
                   esAlta={esAlta}
                   urlActual={campo.tipo === 'imagen' ? urlImagen(registroEditado) : undefined}
                   valor={registroEditado[campo.nombre]}
-                  alCambiar={(valor) => setRegistroEditado({ ...registroEditado, [campo.nombre]: valor })}
+                  alCambiar={(valor) => cambiarCampo(campo.nombre, valor)}
                 />
               ))}
               {catalogo.conEstatus && !esAlta && (
                 <label className="campo">
                   <span>Estatus</span>
-                  <select value={registroEditado.estatus} onChange={(e) => setRegistroEditado({ ...registroEditado, estatus: e.target.value })}>
+                  <select value={registroEditado.estatus} onChange={(e) => cambiarCampo('estatus', e.target.value)}>
                     <option>Activo</option>
                     <option>Inactivo</option>
                   </select>
@@ -212,7 +212,7 @@ export default function PaginaCatalogo({ clave }) {
             </div>
             {error && <p className="mensajeError"><IconoAlerta tamanio={16} /> {error}</p>}
             <div className="accionesModal">
-              <button type="button" className="botonSecundario" onClick={() => setRegistroEditado(null)}>Cancelar</button>
+              <button type="button" className="botonSecundario" onClick={cerrarFormulario}>Cancelar</button>
               <BotonCarga type="submit" cargando={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</BotonCarga>
             </div>
           </form>

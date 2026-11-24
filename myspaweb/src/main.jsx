@@ -3,17 +3,20 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ProveedorSesion } from './contexto/SesionContexto';
 import { ProveedorAvisos } from './contexto/AvisosContexto';
+import { ProveedorPwa } from './contexto/PwaContexto';
 import App from './App';
 import './estilos.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <ProveedorAvisos>
-        <ProveedorSesion>
-          <App />
-        </ProveedorSesion>
-      </ProveedorAvisos>
+      <ProveedorPwa>
+        <ProveedorAvisos>
+          <ProveedorSesion>
+            <App />
+          </ProveedorSesion>
+        </ProveedorAvisos>
+      </ProveedorPwa>
     </BrowserRouter>
   </StrictMode>
 );

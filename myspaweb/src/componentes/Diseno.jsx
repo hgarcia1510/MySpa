@@ -3,6 +3,7 @@ import { useSesion } from '../contexto/SesionContexto';
 import { useAvisos } from '../contexto/AvisosContexto';
 import Logotipo from './Logotipo';
 import { IconoSalir } from './Iconos';
+import { AvisosPwa, BotonInstalar } from './BarraPwa';
 
 export default function Diseno({ menu, children }) {
   const { sesion, cerrarSesion } = useSesion();
@@ -30,6 +31,7 @@ export default function Diseno({ menu, children }) {
           ))}
         </nav>
         <div className="usuarioActual">
+          <BotonInstalar />
           {sesion ? (
             <>
               <span className="avatar">{iniciales}</span>
@@ -44,6 +46,7 @@ export default function Diseno({ menu, children }) {
           )}
         </div>
       </header>
+      <AvisosPwa />
       {/* key = ruta: reinicia la animación de entrada al cambiar de página */}
       <main className="contenido" key={ubicacion.pathname}>{children ?? <Outlet />}</main>
     </div>

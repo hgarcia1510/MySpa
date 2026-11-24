@@ -13,13 +13,15 @@ const seleccion = `
   SELECT r.*, c.numeroUnico, c.correo,
          CONCAT_WS(' ', p.nombre, p.apellidoPaterno, p.apellidoMaterno) AS nombreCliente,
          s.nombre AS nombreSala, su.nombre AS nombreSucursal,
-         sv.idServicio, sv.costo AS costoServicio
+         sv.idServicio, sv.costo AS costoServicio,
+         re.calificacion, re.comentario AS comentarioResena
   FROM reservacion r
   JOIN cliente c   ON c.idCliente = r.idCliente
   JOIN persona p   ON p.idPersona = c.idPersona
   JOIN sala s      ON s.idSala = r.idSala
   JOIN sucursal su ON su.idSucursal = s.idSucursal
-  LEFT JOIN servicio sv ON sv.idReservacion = r.idReservacion`;
+  LEFT JOIN servicio sv ON sv.idReservacion = r.idReservacion
+  LEFT JOIN resena re   ON re.idReservacion = r.idReservacion`;
 
 const columnasBusqueda = ['r.idReservacion', 'r.fecha', 'r.estatus', 'c.numeroUnico', 'p.nombre', 'p.apellidoPaterno', 'p.apellidoMaterno', 's.nombre', 'su.nombre'];
 
@@ -27,6 +29,16 @@ async function obtenerReservacion(idReservacion) {
   const [filas] = await conexionBd.query(`${seleccion} WHERE r.idReservacion = ?`, [idReservacion]);
   if (!filas.length) throw new ErrorNegocio('Reservación no encontrada', 404);
   return filas[0];
+}
+
+/** Una sala no se puede reservar dos veces a la misma hora (las canceladas no cuentan). */
+async function validarDisponibilidad(idSala, fecha, idReservacionActual = null) {
+  const [ocupadas] = await conexionBd.query(
+    `SELECT idReservacion FROM reservacion
+     WHERE idSala = ? AND fecha = ? AND estatus <> ? AND idReservacion <> ?`,
+    [idSala, fecha, estatusReservacion.cancelada, idReservacionActual ?? 0]
+  );
+  if (ocupadas.length) throw new ErrorNegocio('La sala ya está reservada en ese horario. Elige otra hora u otra sala.', 409);
 }
 
 /** Un cliente solo puede ver/cancelar sus propias reservaciones. */
@@ -82,9 +94,11 @@ reservacionesRutas.post('/', async (peticion, respuesta) => {
     idSala: peticion.body.idSala,
     idCliente: esCliente ? peticion.sesion.idCliente : peticion.body.idCliente,
     estatus: estatusReservacion.pendiente,
+    canal: esCliente ? 'Web' : 'Sucursal', // Web = la hizo el cliente; Sucursal = la capturó un empleado
   };
   lanzarSiHayErrores(validarCamposRequeridos(datos, ['fecha', 'idSala', 'idCliente']));
   if (new Date(datos.fecha) < new Date()) throw new ErrorNegocio('La fecha de la reservación ya pasó');
+  await validarDisponibilidad(datos.idSala, datos.fecha);
 
   const [resultado] = await conexionBd.query('INSERT INTO reservacion SET ?', [datos]);
   const reservacion = await obtenerReservacion(resultado.insertId);
@@ -97,6 +111,11 @@ reservacionesRutas.put('/:id', permitirRoles(roles.empleado), async (peticion, r
   const permitidas = ['fecha', 'idSala', 'estatus'];
   const datos = Object.fromEntries(permitidas.filter((campo) => peticion.body[campo] !== undefined).map((campo) => [campo, peticion.body[campo]]));
   if (!Object.keys(datos).length) throw new ErrorNegocio('No hay datos para actualizar');
+  const actual = await obtenerReservacion(peticion.params.id);
+  const estatusFinal = datos.estatus ?? actual.estatus;
+  if (estatusFinal !== estatusReservacion.cancelada) {
+    await validarDisponibilidad(datos.idSala ?? actual.idSala, datos.fecha ?? actual.fecha, actual.idReservacion);
+  }
   await conexionBd.query('UPDATE reservacion SET ? WHERE idReservacion = ?', [datos, peticion.params.id]);
   respuesta.json(await obtenerReservacion(peticion.params.id));
 });
