@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useReducer, useRef } from 'react';
 import { IconoAlerta, IconoBasura, IconoCheck, IconoX } from '../componentes/Iconos';
+import { avisosInicial, avisosReductor } from '../reductores/avisosReductor';
 
 const AvisosContexto = createContext(null);
 const duracionAviso = 3800;
@@ -11,15 +12,14 @@ const duracionAviso = 3800;
  *   if (await confirmar({ titulo: '¿Eliminar?', mensaje: '...', peligro: true })) { ... }
  */
 export function ProveedorAvisos({ children }) {
-  const [avisos, setAvisos] = useState([]);
-  const [confirmacion, setConfirmacion] = useState(null);
+  const [{ avisos, confirmacion }, despachar] = useReducer(avisosReductor, avisosInicial);
   const contador = useRef(0);
 
-  const quitarAviso = useCallback((idAviso) => setAvisos((actuales) => actuales.filter((aviso) => aviso.idAviso !== idAviso)), []);
+  const quitarAviso = useCallback((idAviso) => despachar({ tipo: 'quitar', idAviso }), []);
 
   const avisar = useCallback((tipo, titulo, mensaje) => {
     const idAviso = ++contador.current;
-    setAvisos((actuales) => [...actuales.slice(-3), { idAviso, tipo, titulo, mensaje }]);
+    despachar({ tipo: 'agregar', aviso: { idAviso, tipo, titulo, mensaje } });
     setTimeout(() => quitarAviso(idAviso), duracionAviso);
   }, [quitarAviso]);
 
@@ -28,13 +28,16 @@ export function ProveedorAvisos({ children }) {
   const avisarInfo = useCallback((titulo, mensaje) => avisar('info', titulo, mensaje), [avisar]);
 
   const confirmar = useCallback(
-    (opciones) => new Promise((resolver) => setConfirmacion({ textoAceptar: 'Sí, continuar', textoCancelar: 'Cancelar', ...opciones, resolver })),
+    (opciones) => new Promise((resolver) => despachar({
+      tipo: 'pedirConfirmacion',
+      confirmacion: { textoAceptar: 'Sí, continuar', textoCancelar: 'Cancelar', ...opciones, resolver },
+    })),
     []
   );
 
   function responder(respuesta) {
     confirmacion.resolver(respuesta);
-    setConfirmacion(null);
+    despachar({ tipo: 'cerrarConfirmacion' });
   }
 
   const iconosAviso = { exito: <IconoCheck tamanio={16} />, error: <IconoX tamanio={16} />, info: 'i' };

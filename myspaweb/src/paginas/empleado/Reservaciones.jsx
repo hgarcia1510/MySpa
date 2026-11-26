@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { estatusReservacion, formatearFecha, formatearFechaBd } from '@myspa/compartido';
 import { api } from '../../api';
 import { useAvisos } from '../../contexto/AvisosContexto';
+import { reservacionesInicial, reservacionesReductor } from '../../reductores/reservacionesReductor';
 import { BotonCarga, EsqueletoTabla, EstadoVacio } from '../../componentes/Cargando';
 import { IconoAlerta, IconoBuscar, IconoCalendario, IconoEditar, IconoMas, IconoX } from '../../componentes/Iconos';
 
@@ -10,13 +11,10 @@ import { IconoAlerta, IconoBuscar, IconoCalendario, IconoEditar, IconoMas, Icono
 export default function Reservaciones() {
   const navegar = useNavigate();
   const { avisarExito, avisarError, confirmar } = useAvisos();
-  const [reservaciones, setReservaciones] = useState(null);
-  const [buscar, setBuscar] = useState('');
-  const [estatus, setEstatus] = useState('');
-  const [editando, setEditando] = useState(null);
+  const [{ reservaciones, buscar, estatus, editando }, despachar] = useReducer(reservacionesReductor, reservacionesInicial);
 
   const cargar = useCallback(
-    () => api.reservaciones.listar({ buscar, ...(estatus && { estatus }) }).then(setReservaciones).catch((e) => avisarError('No se pudieron cargar', e.message)),
+    () => api.reservaciones.listar({ buscar, ...(estatus && { estatus }) }).then((lista) => despachar({ tipo: 'cargaExitosa', reservaciones: lista })).catch((e) => avisarError('No se pudieron cargar', e.message)),
     [buscar, estatus, avisarError]
   );
   useEffect(() => { const t = setTimeout(cargar, 300); return () => clearTimeout(t); }, [cargar]);
@@ -63,14 +61,14 @@ export default function Reservaciones() {
           <h1>Reservaciones</h1>
           <p>De la más reciente a la más antigua. Atiende, edita o cancela las pendientes.</p>
         </div>
-        <button onClick={() => setEditando({})}><IconoMas /> Nueva reservación</button>
+        <button onClick={() => despachar({ tipo: 'abrirFormulario', reservacion: {} })}><IconoMas /> Nueva reservación</button>
       </div>
       <div className="barraBusqueda">
         <div className="campoBusqueda">
           <IconoBuscar />
-          <input placeholder="Buscar por cliente, sala, sucursal, fecha…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+          <input placeholder="Buscar por cliente, sala, sucursal, fecha…" value={buscar} onChange={(e) => despachar({ tipo: 'buscar', texto: e.target.value })} />
         </div>
-        <select value={estatus} onChange={(e) => setEstatus(e.target.value)}>
+        <select value={estatus} onChange={(e) => despachar({ tipo: 'filtrarEstatus', estatus: e.target.value })}>
           <option value="">Todos los estatus</option>
           {Object.values(estatusReservacion).map((valor) => <option key={valor}>{valor}</option>)}
         </select>
@@ -96,7 +94,7 @@ export default function Reservaciones() {
                       {reservacion.estatus === estatusReservacion.pendiente && (
                         <>
                           <button className="botonChico" onClick={() => atender(reservacion)}>Atender</button>
-                          <button className="botonSecundario botonChico" onClick={() => setEditando(reservacion)} title="Editar"><IconoEditar tamanio={15} /></button>
+                          <button className="botonSecundario botonChico" onClick={() => despachar({ tipo: 'abrirFormulario', reservacion })} title="Editar"><IconoEditar tamanio={15} /></button>
                           <button className="botonPeligro botonChico" onClick={() => cancelar(reservacion)} title="Cancelar"><IconoX tamanio={15} /></button>
                         </>
                       )}
@@ -113,8 +111,8 @@ export default function Reservaciones() {
       )}
 
       {editando && (
-        <FormularioReservacion reservacion={editando} alCerrar={() => setEditando(null)}
-          alGuardar={(esAlta) => { setEditando(null); avisarExito(esAlta ? 'Reservación creada' : 'Reservación actualizada', esAlta ? 'Se envió un correo al cliente.' : undefined); cargar(); }} />
+        <FormularioReservacion reservacion={editando} alCerrar={() => despachar({ tipo: 'cerrarFormulario' })}
+          alGuardar={(esAlta) => { despachar({ tipo: 'cerrarFormulario' }); avisarExito(esAlta ? 'Reservación creada' : 'Reservación actualizada', esAlta ? 'Se envió un correo al cliente.' : undefined); cargar(); }} />
       )}
     </section>
   );

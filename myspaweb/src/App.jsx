@@ -35,6 +35,7 @@ export default function App() {
   const { sesion } = useSesion();
   const inicio = sesion?.rol === roles.empleado ? '/empleado/reservaciones' : sesion ? '/cliente/salas' : '/salas';
   const [estadoServidor, setEstadoServidor] = useState('verificando'); // verificando | listo | sinConexion
+  const [intento, setIntento] = useState(0);
 
   // Pantalla de carga inicial: verifica que la API responda (mínimo 900 ms para que se aprecie la animación)
   useEffect(() => {
@@ -42,11 +43,22 @@ export default function App() {
     Promise.all([api.peticion('/estado'), espera])
       .then(() => setEstadoServidor('listo'))
       .catch(() => espera.then(() => setEstadoServidor('sinConexion')));
-  }, []);
+  }, [intento]);
+
+  // Sin conexión: se puede reintentar a mano, y se reintenta solo cuando regresa el internet
+  const reintentar = () => { setEstadoServidor('verificando'); setIntento((actual) => actual + 1); };
+  useEffect(() => {
+    if (estadoServidor !== 'sinConexion') return;
+    window.addEventListener('online', reintentar);
+    return () => window.removeEventListener('online', reintentar);
+  }, [estadoServidor]);
 
   if (estadoServidor === 'verificando') return <PantallaCarga />;
   if (estadoServidor === 'sinConexion') {
-    return <PantallaCarga texto="No hay conexión con el servidor. Revisa que la API esté encendida (npm run dev en la carpeta api)." />;
+    const texto = navigator.onLine
+      ? 'No hay conexión con el servidor. Revisa que la API esté encendida (npm run dev en la carpeta api).'
+      : 'No tienes internet. En cuanto vuelva la conexión, MySPA se abrirá solo.';
+    return <PantallaCarga texto={texto}><button onClick={reintentar}>Reintentar</button></PantallaCarga>;
   }
 
   return (

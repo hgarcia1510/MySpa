@@ -103,6 +103,8 @@ CREATE TABLE producto (
   nombre      VARCHAR(80) NOT NULL,
   marca       VARCHAR(80) NOT NULL,
   precioUso   DECIMAL(10,2) NOT NULL,
+  fotografia      VARCHAR(150),
+  rutaFotografia  VARCHAR(255),
   estatus     ENUM('Activo','Inactivo') NOT NULL DEFAULT 'Activo'
 );
 

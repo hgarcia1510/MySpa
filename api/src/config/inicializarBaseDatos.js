@@ -13,6 +13,27 @@ const datosConexion = () => ({
   multipleStatements: true, 
 });
 
+/**
+ * Cambios de esquema para bases creadas con una versión anterior del script
+ * (se aplican solo si faltan, así no hace falta reiniciar la base).
+ */
+const columnasNuevas = [
+  { tabla: 'producto', columna: 'fotografia', definicion: 'VARCHAR(150) AFTER precioUso' },
+  { tabla: 'producto', columna: 'rutaFotografia', definicion: 'VARCHAR(255) AFTER fotografia' },
+];
+
+async function actualizarEsquema(conexion, nombreBaseDatos) {
+  for (const { tabla, columna, definicion } of columnasNuevas) {
+    const [existe] = await conexion.query(
+      'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+      [nombreBaseDatos, tabla, columna]
+    );
+    if (!existe.length) {
+      await conexion.query(`ALTER TABLE \`${nombreBaseDatos}\`.\`${tabla}\` ADD COLUMN \`${columna}\` ${definicion}`);
+      console.log(`Columna ${tabla}.${columna} agregada`);
+    }
+  }
+}
 
 export async function inicializarBaseDatos({ reiniciar = false } = {}) {
   const nombreBaseDatos = process.env.BD_NOMBRE ?? 'mySpa';
@@ -25,6 +46,7 @@ export async function inicializarBaseDatos({ reiniciar = false } = {}) {
 
     const [existentes] = await conexion.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [nombreBaseDatos]);
     if (existentes.length) {
+      await actualizarEsquema(conexion, nombreBaseDatos);
       console.log(`Base de datos ${nombreBaseDatos} lista`);
       return;
     }

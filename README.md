@@ -82,6 +82,22 @@ Abre **http://localhost:5173** en el navegador.
 - Si la API está en otra computadora, crea `myspaweb/.env` con:
   `VITE_URL_API=http://IP_DE_LA_PC:3000`
 
+### Instalarla como app (PWA)
+
+La PWA se prueba con la versión compilada (en `npm run dev` no hay service worker):
+
+```bash
+cd myspaweb
+npm run build
+npm run preview
+```
+
+Abre **http://localhost:4173** y usa el botón **Instalar** de la barra de direcciones de Chrome o Edge.
+
+- Sin internet la app abre y avisa; los datos siempre vienen de la API (no se guardan en caché).
+- Para instalarla en un celular la página y la API deben publicarse con **HTTPS**.
+- Los reducers (`useReducer`) están en `myspaweb/src/reductores/`.
+
 ---
 
 ## 3. App móvil

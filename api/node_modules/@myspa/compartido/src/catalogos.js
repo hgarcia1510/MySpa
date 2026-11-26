@@ -51,12 +51,15 @@ export const catalogos = {
     titulo: 'Productos',
     recurso: 'productos',
     llave: 'idProducto',
+    imagenTabla: 'rutaFotografia', // foto del producto en la tabla
+    imagenCuadrada: true, // los productos se ven mejor en miniatura cuadrada
     conEstatus: true,
     columnas: ['nombre', 'marca', 'precioUso', 'estatus'],
     campos: [
       { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', requerido: true },
       { nombre: 'marca', etiqueta: 'Marca', tipo: 'texto', requerido: true },
       { nombre: 'precioUso', etiqueta: 'Precio de uso', tipo: 'numero', requerido: true },
+      { nombre: 'fotografia', etiqueta: 'Fotografía del producto', tipo: 'imagen' },
     ],
   },
   sucursales: {

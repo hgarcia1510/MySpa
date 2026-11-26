@@ -21,3 +21,24 @@ export const urlFotoSpa = (foto, ancho = 1400, alto = 1000) =>
 
 /** Foto distinta para cada sala sin fotografía propia (siempre la misma para la misma sala). */
 export const fotoParaSala = (idSala) => fotosSpa[(Number(idSala) * 7) % fotosSpa.length];
+
+/**
+ * Foto de respaldo para un producto sin fotografía propia, elegida por palabras
+ * de su nombre (aceite → aromaterapia, piedras → piedras calientes…).
+ */
+const fotosPorPalabra = [
+  [/piedra|basalto|volc/i, '1600334129128-685c5582fd35'],
+  [/mascarilla|arcilla|facial/i, '1570172619644-dfd03ed5d881'],
+  [/lavanda|esencial|aroma|vela|incienso/i, '1620733723572-11c53f73a416'],
+  [/aceite|almendra/i, '1544161515-4ab6ce6db874'],
+  [/exfolia|sal\b|sales|azúcar/i, '1540555700478-4be289fbecef'],
+  [/crema|hidrat|gel|loci[oó]n|bálsamo/i, '1515377905703-c4788e51af15'],
+  [/toalla|bata|sábana/i, '1507652313519-d4e9174996dd'],
+];
+
+export const fotoParaProducto = (producto) => {
+  const coincidencia = fotosPorPalabra.find(([patron]) => patron.test(producto?.nombre ?? ''));
+  return coincidencia
+    ? fotosSpa.find((foto) => foto.idUnsplash === coincidencia[1])
+    : fotosSpa[(Number(producto?.idProducto) * 5) % fotosSpa.length];
+};

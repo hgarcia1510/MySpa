@@ -8,8 +8,10 @@ import { validarHorario } from '@myspa/compartido';
 export const productosRutas = crearRutasCrud({
   tabla: 'producto',
   llave: 'idProducto',
-  columnas: ['nombre', 'marca', 'precioUso', 'estatus'],
+  columnas: ['nombre', 'marca', 'precioUso', 'fotografia', 'rutaFotografia', 'estatus'],
+  columnasBusqueda: ['t.nombre', 't.marca', 't.precioUso', 't.estatus'],
   requeridos: ['nombre', 'marca', 'precioUso'],
+  imagen: { campo: 'fotografia', columnaRuta: 'rutaFotografia' },
 });
 
 // RF 04 - Sucursales (lectura pública: los clientes buscan salas por sucursal)

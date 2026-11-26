@@ -1,11 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { catalogos, etiquetasColumnas, formatearMoneda } from '@myspa/compartido';
 import { api, urlServidor } from '../api';
 import { useAvisos } from '../contexto/AvisosContexto';
+import { catalogoInicial, catalogoReductor } from '../reductores/catalogoReductor';
 import CampoFormulario from './CampoFormulario';
 import AsignarHorarios from './AsignarHorarios';
 import { BotonCarga, EsqueletoTabla, EstadoVacio } from './Cargando';
-import { IconoAlerta, IconoBasura, IconoBuscar, IconoEditar, IconoMas, IconoReloj } from './Iconos';
+import { IconoAlerta, IconoBasura, IconoBuscar, IconoEditar, IconoFrasco, IconoMas, IconoReloj } from './Iconos';
+import { fotoParaProducto, urlFotoSpa } from '../fotosSpa';
+
+/** Miniatura de la tabla: foto (propia o de respaldo) o, si no carga, un marcador elegante. */
+function MiniaturaTabla({ url, nombre, cuadrada }) {
+  const [fallo, setFallo] = useState(false);
+  const clase = `miniatura ${cuadrada ? 'miniaturaCuadrada' : ''}`;
+  if (url && !fallo) return <img className={clase} src={url} alt={nombre ?? ''} loading="lazy" onError={() => setFallo(true)} />;
+  return (
+    <div className={`${clase} miniaturaVacia`} title="Sin fotografía">
+      {cuadrada ? <IconoFrasco tamanio={22} /> : String(nombre ?? '?')[0]}
+    </div>
+  );
+}
 
 const subtitulos = {
   empleados: 'Personal del spa, sus puestos y accesos al sistema.',
@@ -26,22 +40,15 @@ export default function PaginaCatalogo({ clave }) {
   const recursoApi = api[catalogo.recurso];
   const { avisarExito, avisarError, confirmar } = useAvisos();
 
-  const [registros, setRegistros] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [buscar, setBuscar] = useState('');
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
-  const [registroEditado, setRegistroEditado] = useState(null); // null = cerrado, {} = alta
-  const [error, setError] = useState('');
-  const [salaHorarios, setSalaHorarios] = useState(null);
+  const [estado, despachar] = useReducer(catalogoReductor, catalogoInicial);
+  const { registros, cargando, guardando, buscar, mostrarInactivos, registroEditado, error, salaHorarios } = estado;
 
   const cargar = useCallback(async () => {
     try {
-      setRegistros(await recursoApi.listar({ buscar, inactivos: mostrarInactivos }));
+      despachar({ tipo: 'cargaExitosa', registros: await recursoApi.listar({ buscar, inactivos: mostrarInactivos }) });
     } catch (errorCarga) {
+      despachar({ tipo: 'cargaFallida' });
       avisarError('No se pudo cargar la lista', errorCarga.message);
-    } finally {
-      setCargando(false);
     }
   }, [recursoApi, buscar, mostrarInactivos, avisarError]);
 
@@ -56,7 +63,6 @@ export default function PaginaCatalogo({ clave }) {
 
   async function guardar(evento) {
     evento.preventDefault();
-    setError('');
     const tieneArchivo = camposVisibles.some((campo) => campo.tipo === 'imagen' && registroEditado[campo.nombre] instanceof File);
     let datos = {};
     for (const campo of camposVisibles) {
@@ -71,17 +77,15 @@ export default function PaginaCatalogo({ clave }) {
       Object.entries(datos).forEach(([nombre, valor]) => formulario.append(nombre, valor));
       datos = formulario;
     }
-    setGuardando(true);
+    despachar({ tipo: 'guardar' });
     try {
       const resultado = esAlta ? await recursoApi.crear(datos) : await recursoApi.actualizar(registroEditado[catalogo.llave], datos);
       const numeroGenerado = resultado?.numeroEmpleado ?? resultado?.numeroUnico;
       avisarExito(esAlta ? 'Registro creado' : 'Cambios guardados', numeroGenerado ? `Número asignado: ${numeroGenerado}` : 'La información se guardó correctamente.');
-      setRegistroEditado(null);
+      despachar({ tipo: 'guardadoExitoso' });
       cargar();
     } catch (errorGuardar) {
-      setError(errorGuardar.message);
-    } finally {
-      setGuardando(false);
+      despachar({ tipo: 'guardadoFallido', mensaje: errorGuardar.message });
     }
   }
 
@@ -105,6 +109,8 @@ export default function PaginaCatalogo({ clave }) {
     }
   }
 
+  // Productos sin foto propia: una foto de spa acorde a su nombre
+  const urlRespaldo = (registro) => (clave === 'productos' ? urlFotoSpa(fotoParaProducto(registro), 160, 160) : null);
   const urlImagen = (registro) => (catalogo.imagenTabla && registro?.[catalogo.imagenTabla] ? `${urlServidor}${registro[catalogo.imagenTabla]}` : null);
 
   function mostrarValor(columna, valor) {
@@ -121,17 +127,17 @@ export default function PaginaCatalogo({ clave }) {
           <h1>{catalogo.titulo}</h1>
           <p>{subtitulos[clave]}</p>
         </div>
-        <button onClick={() => { setError(''); setRegistroEditado({}); }}><IconoMas /> Nuevo</button>
+        <button onClick={() => despachar({ tipo: 'abrirFormulario', registro: {} })}><IconoMas /> Nuevo</button>
       </div>
 
       <div className="barraBusqueda">
         <div className="campoBusqueda">
           <IconoBuscar />
-          <input placeholder="Buscar por cualquier campo…" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+          <input placeholder="Buscar por cualquier campo…" value={buscar} onChange={(e) => despachar({ tipo: 'buscar', texto: e.target.value })} />
         </div>
         {catalogo.conEstatus && (
           <label className="casilla">
-            <input type="checkbox" checked={mostrarInactivos} onChange={(e) => setMostrarInactivos(e.target.checked)} />
+            <input type="checkbox" checked={mostrarInactivos} onChange={(e) => despachar({ tipo: 'mostrarInactivos', valor: e.target.checked })} />
             Mostrar inactivos
           </label>
         )}
@@ -149,7 +155,7 @@ export default function PaginaCatalogo({ clave }) {
           <table>
             <thead>
               <tr>
-                {catalogo.imagenTabla && <th>Foto</th>}
+                {catalogo.imagenTabla && <th>{catalogo.imagenCuadrada ? 'Imagen' : 'Foto'}</th>}
                 {catalogo.columnas.map((columna) => <th key={columna}>{etiquetasColumnas[columna] ?? columna}</th>)}
                 <th />
               </tr>
@@ -159,18 +165,17 @@ export default function PaginaCatalogo({ clave }) {
                 <tr key={registro[catalogo.llave]} className={registro.estatus === 'Inactivo' ? 'filaInactiva' : ''}>
                   {catalogo.imagenTabla && (
                     <td>
-                      {urlImagen(registro)
-                        ? <img className="miniatura" src={urlImagen(registro)} alt="" />
-                        : <div className="miniatura miniaturaVacia">{String(registro.nombre ?? '?')[0]}</div>}
+                      <MiniaturaTabla key={urlImagen(registro) ?? 'sinFoto'} url={urlImagen(registro) ?? urlRespaldo(registro)}
+                        nombre={registro.nombre} cuadrada={catalogo.imagenCuadrada} />
                     </td>
                   )}
                   {catalogo.columnas.map((columna) => <td key={columna}>{mostrarValor(columna, registro[columna])}</td>)}
                   <td>
                     <div className="accionesFila">
                       {catalogo.conHorarios && (
-                        <button className="botonSecundario botonChico" onClick={() => setSalaHorarios(registro)}><IconoReloj tamanio={15} /> Horarios</button>
+                        <button className="botonSecundario botonChico" onClick={() => despachar({ tipo: 'abrirHorarios', sala: registro })}><IconoReloj tamanio={15} /> Horarios</button>
                       )}
-                      <button className="botonSecundario botonChico" onClick={() => { setError(''); setRegistroEditado(registro); }}><IconoEditar tamanio={15} /> Editar</button>
+                      <button className="botonSecundario botonChico" onClick={() => despachar({ tipo: 'abrirFormulario', registro })}><IconoEditar tamanio={15} /> Editar</button>
                       {registro.estatus !== 'Inactivo' && (
                         <button className="botonPeligro botonChico" onClick={() => eliminar(registro)}><IconoBasura tamanio={15} /></button>
                       )}
@@ -183,10 +188,10 @@ export default function PaginaCatalogo({ clave }) {
         </div>
       )}
 
-      {salaHorarios && <AsignarHorarios sala={salaHorarios} alCerrar={() => setSalaHorarios(null)} />}
+      {salaHorarios && <AsignarHorarios sala={salaHorarios} alCerrar={() => despachar({ tipo: 'cerrarHorarios' })} />}
 
       {registroEditado && (
-        <div className="fondoModal" onClick={() => setRegistroEditado(null)}>
+        <div className="fondoModal" onClick={() => despachar({ tipo: 'cerrarFormulario' })}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={guardar}>
             <h2>{esAlta ? `Nuevo ${nombreSingular}` : `Editar ${nombreSingular}`}</h2>
             <div className="rejillaFormulario">
@@ -197,13 +202,13 @@ export default function PaginaCatalogo({ clave }) {
                   esAlta={esAlta}
                   urlActual={campo.tipo === 'imagen' ? urlImagen(registroEditado) : undefined}
                   valor={registroEditado[campo.nombre]}
-                  alCambiar={(valor) => setRegistroEditado({ ...registroEditado, [campo.nombre]: valor })}
+                  alCambiar={(valor) => despachar({ tipo: 'cambiarCampo', nombre: campo.nombre, valor })}
                 />
               ))}
               {catalogo.conEstatus && !esAlta && (
                 <label className="campo">
                   <span>Estatus</span>
-                  <select value={registroEditado.estatus} onChange={(e) => setRegistroEditado({ ...registroEditado, estatus: e.target.value })}>
+                  <select value={registroEditado.estatus} onChange={(e) => despachar({ tipo: 'cambiarCampo', nombre: 'estatus', valor: e.target.value })}>
                     <option>Activo</option>
                     <option>Inactivo</option>
                   </select>
@@ -212,7 +217,7 @@ export default function PaginaCatalogo({ clave }) {
             </div>
             {error && <p className="mensajeError"><IconoAlerta tamanio={16} /> {error}</p>}
             <div className="accionesModal">
-              <button type="button" className="botonSecundario" onClick={() => setRegistroEditado(null)}>Cancelar</button>
+              <button type="button" className="botonSecundario" onClick={() => despachar({ tipo: 'cerrarFormulario' })}>Cancelar</button>
               <BotonCarga type="submit" cargando={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</BotonCarga>
             </div>
           </form>

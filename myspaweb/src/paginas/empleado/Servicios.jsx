@@ -79,7 +79,7 @@ export default function Servicios() {
               {servicios.map((elemento) => (
                 <li key={elemento.idServicio} className={String(elemento.idServicio) === idSeleccionado ? 'seleccionado' : ''}
                   onClick={() => setParametros({ id: elemento.idServicio })}>
-                  <div className="barraTitulo">
+                  <div className="tituloConEstatus">
                     <b>#{elemento.idServicio} · {elemento.nombreCliente}</b>
                     <span className="costoTratamiento">{formatearMoneda(elemento.costo)}</span>
                   </div>

@@ -2,12 +2,13 @@ import Logotipo from './Logotipo';
 import { IconoHoja } from './Iconos';
 
 /** Pantalla completa de carga con el logo girando (al iniciar la app o cambiar de sesión). */
-export function PantallaCarga({ texto = 'Preparando tu espacio de relajación…' }) {
+export function PantallaCarga({ texto = 'Preparando tu espacio de relajación…', children }) {
   return (
     <div className="pantallaCarga">
       <div className="contenidoCarga">
         <div className="anilloCarga"><Logotipo tamanio={52} animado /></div>
         <span>{texto}</span>
+        {children}
       </div>
     </div>
   );

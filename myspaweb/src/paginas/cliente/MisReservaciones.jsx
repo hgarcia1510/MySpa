@@ -50,7 +50,7 @@ export default function MisReservaciones() {
         <div className="rejillaTarjetas">
           {reservaciones.map((reservacion) => (
             <article key={reservacion.idReservacion} className="tarjeta tarjetaInteractiva">
-              <div className="barraTitulo">
+              <div className="tituloConEstatus">
                 <h3>{reservacion.nombreSala}</h3>
                 <span className={`etiqueta etiqueta${reservacion.estatus}`}>{reservacion.estatus}</span>
               </div>

@@ -1,7 +1,7 @@
 /** Íconos SVG ligeros (trazo) para no depender de librerías. */
-function Icono({ children, tamanio = 18 }) {
+function Icono({ children, tamanio = 18, className }) {
   return (
-    <svg width={tamanio} height={tamanio} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className={className} width={tamanio} height={tamanio} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {children}
     </svg>
   );
@@ -24,3 +24,5 @@ export const IconoHoja = (p) => <Icono {...p}><path d="M11 20A7 7 0 0 1 4 13c0-6
 export const IconoFlechaIzquierda = (p) => <Icono {...p}><path d="M19 12H5M12 19l-7-7 7-7" /></Icono>;
 export const IconoMasaje = (p) => <Icono {...p}><circle cx="17" cy="6" r="2" /><path d="M3 15h13a3 3 0 0 0 3-3v-1" /><path d="M2 19h20" /><path d="M7 15l2-4h5" /></Icono>;
 export const IconoBrillo = (p) => <Icono {...p}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" /><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8Z" /></Icono>;
+export const IconoFlechaAbajo = (p) => <Icono {...p}><path d="m6 9 6 6 6-6" /></Icono>;
+export const IconoFrasco = (p) => <Icono {...p}><path d="M9 3h6M10 3v3.5L7.5 9A3 3 0 0 0 7 10.7V19a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-8.3a3 3 0 0 0-.5-1.7L14 6.5V3" /><path d="M7 13h10" /></Icono>;
